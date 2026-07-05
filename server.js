@@ -8,12 +8,11 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// 确保 /data 目录存在
-if (!fs.existsSync('/data')) {
-  fs.mkdirSync('/data', { recursive: true });
-}
+// 数据库路径：优先用/data，不存在则用/tmp
+const dbPath = fs.existsSync('/data') ? '/data/family-tree.db' : '/tmp/family-tree.db';
+console.log(`Database path: ${dbPath}`);
 
-const db = new Database('/data/family-tree.db');
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 db.exec(`CREATE TABLE IF NOT EXISTS family_data (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL, updated_at TEXT DEFAULT (datetime('now')))`)
@@ -43,7 +42,7 @@ app.post('/api/family-backup', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   const row = db.prepare('SELECT updated_at FROM family_data WHERE id = 1').get();
-  res.json({ status: 'ok', service: 'luozupu', last_updated: row ? row.updated_at : 'never' });
+  res.json({ status: 'ok', service: 'luozupu', db_path: dbPath, last_updated: row ? row.updated_at : 'never' });
 });
 
 const PORT = process.env.PORT || 3000;
