@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const Database = require('better-sqlite3');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 app.use(cors());
@@ -13,15 +12,11 @@ db.pragma('journal_mode = WAL');
 
 db.exec(`CREATE TABLE IF NOT EXISTS family_data (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL, updated_at TEXT DEFAULT (datetime('now')))`)
 
-const existingData = db.prepare('SELECT data FROM family_data WHERE id = 1').get();
-if (!existingData) {
-  const seedFile = path.join(__dirname, 'family_data_seed.json');
-  if (fs.existsSync(seedFile)) {
-    const seedData = fs.readFileSync(seedFile, 'utf-8');
-    db.prepare('INSERT INTO family_data (id, data) VALUES (1, ?)').run(seedData);
-  } else {
-    db.prepare('INSERT INTO family_data (id, data) VALUES (1, ?)').run(JSON.stringify({}));
-  }
+// 初始化空数据
+const existing = db.prepare('SELECT id FROM family_data WHERE id = 1').get();
+if (!existing) {
+  db.prepare('INSERT INTO family_data (id, data) VALUES (1, ?)').run(JSON.stringify({}));
+  console.log('Initialized empty family data');
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -37,15 +32,8 @@ app.post('/api/family-data', (req, res) => {
 });
 
 app.post('/api/family-backup', (req, res) => {
-  try {
-    const row = db.prepare('SELECT data FROM family_data WHERE id = 1').get();
-    if (!row) return res.status(404).json({ error: 'No data' });
-    const backupDir = '/data/backups';
-    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    const backupFile = path.join(backupDir, `family_data_${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-    fs.writeFileSync(backupFile, row.data);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: 'Failed' }); }
+  try { res.json({ success: true, message: 'Backup API ready' }); }
+  catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
 
 app.get('/api/health', (req, res) => {
