@@ -2,17 +2,22 @@ const express = require('express');
 const cors = require('cors');
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+// 确保 /data 目录存在
+if (!fs.existsSync('/data')) {
+  fs.mkdirSync('/data', { recursive: true });
+}
 
 const db = new Database('/data/family-tree.db');
 db.pragma('journal_mode = WAL');
 
 db.exec(`CREATE TABLE IF NOT EXISTS family_data (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL, updated_at TEXT DEFAULT (datetime('now')))`)
 
-// 初始化空数据
 const existing = db.prepare('SELECT id FROM family_data WHERE id = 1').get();
 if (!existing) {
   db.prepare('INSERT INTO family_data (id, data) VALUES (1, ?)').run(JSON.stringify({}));
